@@ -1,2 +1,1 @@
-# elliot-power
-Power analysis for proposed Elliott State Forest design
+Work out code and then create an interactive flexdashboard Power analysis for proposed Elliott State Forest design.  Start with the simplest power analysis, focused on the four treatments at the subwatershed-level.

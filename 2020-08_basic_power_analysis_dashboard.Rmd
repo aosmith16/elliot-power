@@ -1,0 +1,65 @@
+---
+title: "Elliott State Forest preliminary power analysis"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: columns
+    vertical_layout: fill
+---
+
+```{r setup, include = FALSE}
+library(flexdashboard)
+library(shiny)
+library(ggplot2) # v. 3.3.2
+library(purrr) # v. 0.3.4
+
+# Function for extracting overall p-value and 
+     # largest effect size from 4 group ANOVA
+anova_fun = function(groups, n, means, vars) {
+     trt = rep(groups, times = n)
+     y = unlist( pmap(list(n, means, vars),
+              function(n, mean, var) {
+                   rnorm(n = n, mean = mean, sd = sqrt(var) )
+              } ) )
+     
+     dat = data.frame(trt = forcats::fct_inorder(trt), y)
+     model = lm(y ~ trt, data = dat)
+     
+     coefs = coef(model)
+     coefs[2:4] = coefs[2:4] + coefs[1]
+     names(coefs) = groups
+     est = coefs[maxmean] - coefs[minmean]
+     
+     results = data.frame(p = anova(model)$`Pr(>F)`[1],
+                          est)
+     names(results) = c("p", paste(maxmean, "minus", minmean) )
+     results
+}
+
+# Treatment names don't vary so define here
+trtnames = c("Intensive", "Triad E", "Triad I", "Extensive")
+```
+
+Column {data-width=650}
+-----------------------------------------------------------------------
+
+### Chart A
+
+```{r}
+
+```
+
+Column {data-width=350}
+-----------------------------------------------------------------------
+
+### Chart B
+
+```{r}
+
+```
+
+### Chart C
+
+```{r}
+
+```
+
