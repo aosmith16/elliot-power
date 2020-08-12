@@ -2,19 +2,22 @@
 title: "Elliott State Forest preliminary power analysis"
 output: 
   flexdashboard::flex_dashboard:
-    orientation: columns
-    vertical_layout: fill
+    orientation: rows
+    vertical_layout: scroll
+    source_code: embed
+runtime: shiny
 ---
 
 ```{r setup, include = FALSE}
 library(flexdashboard)
 library(shiny)
 library(ggplot2) # v. 3.3.2
+library(ggtext) # v. 0.1.0
 library(purrr) # v. 0.3.4
 
 # Function for extracting overall p-value and 
      # largest effect size from 4 group ANOVA
-anova_fun = function(groups, n, means, vars) {
+anova_fun = function(groups, n, means, vars, maxmean, minmean) {
      trt = rep(groups, times = n)
      y = unlist( pmap(list(n, means, vars),
               function(n, mean, var) {
@@ -23,13 +26,14 @@ anova_fun = function(groups, n, means, vars) {
      
      dat = data.frame(trt = forcats::fct_inorder(trt), y)
      model = lm(y ~ trt, data = dat)
+     modelw = oneway.test(y ~ trt, data = dat)
      
      coefs = coef(model)
      coefs[2:4] = coefs[2:4] + coefs[1]
      names(coefs) = groups
      est = coefs[maxmean] - coefs[minmean]
      
-     results = data.frame(p = anova(model)$`Pr(>F)`[1],
+     results = data.frame(p = modelw$p.value,
                           est)
      names(results) = c("p", paste(maxmean, "minus", minmean) )
      results
@@ -39,27 +43,204 @@ anova_fun = function(groups, n, means, vars) {
 trtnames = c("Intensive", "Triad E", "Triad I", "Extensive")
 ```
 
-Column {data-width=650}
+<style type="text/css">
+label { 
+   display: table-cell; 
+   text-align: right; 
+   vertical-align: middle; 
+   }
+.form-group { 
+   display: table-row;
+   }
+.shiny-bound-input {
+      width: 100px;
+      height: 30px;
+      text-align: right;
+}
+input {
+      margin-left: 10px;
+}
+</style>
+
+Column {.sidebar data-width=400}
 -----------------------------------------------------------------------
 
-### Chart A
+Fill in the fields below and click **Run** to do a simple power analysis based on the Elliott State Forest Triad design, where four treatments are assigned to subwatersheds.  This is a power analysis based on a Welch ANOVA, which assumes normality of errors but variances differ among groups.
+
+**Number subwatersheds per treatment**
+
+Enter the number of subwatersheds you want in each treatment.
 
 ```{r}
-
+textInput(inputId = "n1", 
+          label = "Intensive: ",
+          value = 10)
+textInput(inputId = "n2", 
+          label = "Triad E: ",
+          value = 11)
+textInput(inputId = "n3", 
+          label = "Triad I: ",
+          value = 10)
+textInput(inputId = "n4", 
+          label = "Extensive: ",
+          value = 9)
 ```
 
-Column {data-width=350}
+
+**Mean for each treatment**
+
+Enter the expected mean for each treatment, focusing on the differences between the treatment means as the effect size of interest.  
+
+```{r}
+textInput(inputId = "mean1", 
+          label = "Intensive: ")
+textInput(inputId = "mean2", 
+          label = "Triad E: ")
+textInput(inputId = "mean3", 
+          label = "Triad I: ")
+textInput(inputId = "mean4", 
+          label = "Extensive: ")
+```
+
+**Variance per treatment**
+
+Define the expected among-subwatershed variance for each treatment.
+
+```{r}
+textInput(inputId = "var1", 
+          label = "Intensive: ")
+textInput(inputId = "var2", 
+          label = "Triad E: ")
+textInput(inputId = "var3", 
+          label = "Triad I: ")
+textInput(inputId = "var4", 
+          label = "Extensive: ")
+```
+
+**Choose number of simulations to run**
+
+```{r}
+textInput(inputId = "numsim", 
+          label = "Number simulations:",
+          value = 1000)
+```
+
+Once you've entered numbers into all the boxes above, click the button below to run the power analysis and see the results in the boxes on the right.
+
+```{r}
+actionButton(inputId = "click",
+             label = "Run!",
+             width = "100%",
+             style="color: #fff; background-color: #337ab7; border-color: #2e6da4; text-align: center; padding:0px; font-size:150%")
+```
+
+*If you chose to do many simulations, it may take several long seconds before you see any results.*
+
+Row {data-height=150} 
 -----------------------------------------------------------------------
 
-### Chart B
+### Estimate of Power
 
 ```{r}
+results = eventReactive(eventExpr = input$click, {
+     n = as.numeric(c(input$n1, input$n2, input$n3, input$n4))
+     means = as.numeric(c(input$mean1, input$mean2, input$mean3, input$mean4))
+     names(means) = trtnames 
+     vars = as.numeric(c(input$var1, input$var2, input$var3, input$var4))
+     minmean = names(means[means == min(means)])[1]
+     maxmean = names(means[means == max(means)])[1]
+     truediff = means[maxmean] - means[minmean]
+
+     allres = replicate(n = input$numsim,
+                   expr = anova_fun(groups = trtnames,
+                                    n = n,
+                                    means = means,
+                                    vars = vars,
+                                    maxmean =  maxmean,
+                                    minmean = minmean),
+                   simplify = FALSE)
+     allres = do.call("rbind", allres)
+     list(truediff = truediff, allres = allres)
+})
 
 ```
 
-### Chart C
 
 ```{r}
-
+renderUI({
+     allres = results()$allres
+     pow = round(mean(allres$p <= .05), 2)
+     num = pow*100
+     HTML( paste0("Using an alpha of 0.05, the estimated power based on the effect size and treatment variances you defined is ",
+            pow,
+            ". ",
+            " Power ranges between 0 and 1.<br><br>",
+            "If you could run the experiment 100 times and then analyze each resulting dataset separately, you would get a p-value less than 0.05 from the overall F test ", "<b>", num, "</b>", " times.") )
+})
 ```
+
+Row 
+-----------------------------------------------------------------------
+
+### Plot of p-values
+
+```{r}
+renderPlot({
+     results = results()
+     ggplot(data = results$allres, aes(x = p) ) +
+          geom_histogram(fill = "blue", binwidth = .025, boundary = .05) +
+          geom_vline(xintercept = 0.05, size = 1) +
+          labs(title = "Distribution of p-values from Welch ANOVA",
+               caption = paste("*Results from", input$numsim, "simulations*"),
+               x = "P-value from overall F test",
+               y = "Count") +
+          scale_x_continuous(limits = c(0, 1),
+                             breaks = c(0.05, 0.25, 0.50, 0.75, 1.00),
+                             expand = expansion(mult = c(0, .05) ) ) +
+          scale_y_continuous(expand = expansion(mult = c(0, .02) ) ) +
+          theme_bw(base_size = 18) +
+          theme(plot.caption = element_markdown() )
+})
+```
+
+Row {data-height=150} 
+-----------------------------------------------------------------------
+
+### Effect size
+
+```{r}
+renderText({
+     allres = results()$allres
+     "The next plot shows the distribution of estimated difference in means for the two groups that you defined to have the largest difference between them.  This gives you a chance to think about the possible values you might observe for this difference based on the parameters you defined so you can think about the practical importance of such effect sizes."
+})
+```
+
+
+Row 
+-----------------------------------------------------------------------
+
+### Plot of effect size 
+
+```{r}
+renderPlot({
+     results = results()
+     ggplot(data = results$allres, aes(x = .data[[names(results$allres)[2]]]) ) +
+          geom_density(fill = "blue") +
+          geom_vline(xintercept = results$truediff, size = 1) +
+          annotate("label", label = paste("True difference: ", results$truediff),
+                   x = results$truediff, y = 0, angle = 90) +
+          labs(title = "Distribution of estimated difference in means",
+               subtitle = paste0("*", names(results$allres)[2], "*"),
+               caption = paste("*Results from", input$numsim, "simulations*"),
+               y = "Density",
+               x = NULL) +
+          theme_bw(base_size = 18) +
+          theme(axis.text.y = element_blank(),
+                axis.ticks.y = element_blank(),
+                plot.caption = element_markdown(),
+                plot.subtitle = element_markdown() )
+})
+```
+
+
 

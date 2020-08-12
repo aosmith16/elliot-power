@@ -50,12 +50,17 @@ y = pmap(list(trtn, groupmeans, groupvar),
 # to set factor level order
 dat = data.frame(trt = forcats::fct_inorder(trt), y)
 
-# Fit model
+# Fit model for calculating differences
 model = lm(y ~ trt, data = dat)
+
+# But remember are allowing nonconstant variance
+# A simple way to get overall test is to use
+     # oneway.test for Welch ANOVA
+modelw = oneway.test(y ~ trt, data = dat)
 
 # Extract overall F test p-value
 anova(model)$`Pr(>F)`[1]
-
+modelw$p.value
 
 # Extract estimated difference for 
      # the two groups that were defined to have largest diff
@@ -80,7 +85,7 @@ est = coefs[maxmean] - coefs[minmean]
 library(purrr)
 # I skipped using emmeans because it added
      # a lot of time
-anova_fun = function(groups, n, means, vars) {
+anova_fun = function(groups, n, means, vars, maxmean = maxmean, minmean = minmean) {
      trt = rep(groups, times = n)
      y = unlist( pmap(list(n, means, vars),
               function(n, mean, var) {
@@ -89,13 +94,14 @@ anova_fun = function(groups, n, means, vars) {
      
      dat = data.frame(trt = forcats::fct_inorder(trt), y)
      model = lm(y ~ trt, data = dat)
+     modelw = oneway.test(y ~ trt, data = dat)
      
      coefs = coef(model)
      coefs[2:4] = coefs[2:4] + coefs[1]
      names(coefs) = groups
      est = coefs[maxmean] - coefs[minmean]
      
-     results = data.frame(p = anova(model)$`Pr(>F)`[1],
+     results = data.frame(p = modelw$p.value,
                           est)
      names(results) = c("p", paste(maxmean, "minus", minmean) )
      results
@@ -120,8 +126,9 @@ mean(allres$p < .05)
 # Distribution of effects
 
 # Calculate true difference based on given means
-# I did max minus min throughout
+# I did max minus min throughout function and plot
 truediff = groupmeans[maxmean] - groupmeans[minmean]
+numsim = 1000
 
 library(ggplot2)
 library(ggtext)
@@ -132,7 +139,7 @@ ggplot(data = allres, aes(x = .data[[names(allres)[2]]]) ) +
               x = truediff, y = 0, angle = 90) +
      labs(title = "Distribution of estimated difference in means",
           subtitle = paste0("*", names(allres)[2], "*"),
-          caption = "*Results from 1000 simulations*",
+          caption = paste("*Results from", numsim, "simulations*"),
           y = "Density",
           x = NULL) +
      theme_bw(base_size = 18) +
@@ -141,6 +148,19 @@ ggplot(data = allres, aes(x = .data[[names(allres)[2]]]) ) +
            plot.caption = element_markdown(),
            plot.subtitle = element_markdown() )
 
+# Add in plot of histogram of p-values
+ggplot(data = allres, aes(x = p) ) +
+     geom_histogram(fill = "blue", binwidth = .025, boundary = .05) +
+     geom_vline(xintercept = 0.05) +
+     labs(title = "Distribution of p-values from Welch ANOVA",
+          caption = paste("*Results from", numsim, "simulations*"),
+          x = "P-value from overall F test",
+          y = "Count") +
+     scale_x_continuous(breaks = c(0.05, 0.25, 0.50, 0.75, 1.00),
+                        expand = expansion(mult = c(0, .05) ) ) +
+     scale_y_continuous(expand = expansion(mult = c(0, .02) ) ) +
+     theme_bw(base_size = 18) +
+     theme(plot.caption = element_markdown() )
 
 # apply() vs pmap(); pmap() seems better
 groupdat = data.frame(trtn, groupmeans, groupvar)
