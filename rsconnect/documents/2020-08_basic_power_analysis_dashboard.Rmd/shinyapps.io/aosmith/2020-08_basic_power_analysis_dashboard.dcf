@@ -1,0 +1,12 @@
+name: 2020-08_basic_power_analysis_dashboard
+title: 2020-08_basic_power_analysis_dashboard
+username:
+account: aosmith
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 2664564
+bundleId: 3508131
+url: https://aosmith.shinyapps.io/2020-08_basic_power_analysis_dashboard/
+when: 1597264534.68648
+asMultiple: FALSE
+asStatic: FALSE
