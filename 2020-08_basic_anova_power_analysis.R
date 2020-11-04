@@ -1,9 +1,10 @@
-# Power analysis taken from https://stats.idre.ucla.edu/r/dae/one-way-anova-power-analysis/
+# Canned power analysis taken from 
+        # https://stats.idre.ucla.edu/r/dae/one-way-anova-power-analysis/
 groupmeans = c(550, 598, 598, 646)
 power.anova.test(groups = length(groupmeans), 
                  between.var = var(groupmeans), 
                  within.var = 6400, 
-                 power=0.8, sig.level=0.05,n=NULL) 
+                 power = 0.8, sig.level = 0.05, n = NULL) 
 
 # Calculate power through simulation as proof of concept
 anova_testfun = function(ngroups, n) {
@@ -178,3 +179,112 @@ microbenchmark::microbenchmark(unlist(pmap(list(trtn, groupmeans, groupvar),
                                            function(trtn, groupmeans, groupvar) {
                                                 rnorm(n = trtn, mean = groupmeans, sd = sqrt(groupvar) )
                                            } ) ) )
+
+
+
+# Prepare for multiple sample size options ----
+trtnames = c("Intensive", "Triad E", "Triad I", "Extensive")
+groupmeans = c(550, 598, 598, 646) # These means can change
+names(groupmeans) = trtnames # Add names to extract largest difference
+groupvar = c(6000, 6400, 6400, 6800) # Allow variances to differ per group
+
+# Calculate groups that make up largest and smallest means
+# (so biggest difference)
+# If have ties, take the first name alphabetically
+minmean = names(groupmeans[groupmeans == min(groupmeans)])[1]
+maxmean = names(groupmeans[groupmeans == max(groupmeans)])[1]
+
+# Diff sample sizes
+trtn = list(standard = c(9, 11, 10, 10),
+            large = c(20, 20, 20, 20) ) # Number per group (same order as names)
+
+
+# Loop through sample sizes and then replicate each one
+    # (make sure run anova_fun code first and load purrr)
+multres = map_dfr(trtn, ~do.call("rbind", replicate(n = 1000, 
+                     expr = anova_fun(groups = trtnames,
+                                      n = .x,
+                                      means = groupmeans,
+                                      vars = groupvar,
+                                      minmean = minmean,
+                                      maxmean = maxmean),
+                     simplify = FALSE)),
+        .id = "sample")
+
+
+# If do multiple responses (change sample sizes and means)
+    # work within lists
+# Need to calculate min and max mean group
+trtnames = c("Intensive", "Triad E", "Triad I", "Extensive")
+params = list(Carbon = list( trtnames = trtnames,
+                              trtn = c(9, 11, 10, 10),
+                              groupmeans = set_names(c(550, 598, 598, 646), trtnames),
+                              groupvar = c(6000, 6400, 6400, 6800)),
+             BTYW = list( trtnames = trtnames,
+                           trtn = c(20, 20, 20, 20),
+                           groupmeans = set_names(c(550, 598, 800, 646), trtnames),
+                           groupvar = c(6000, 6400, 6400, 6800))
+)
+
+# Calculate min and max group
+params = map(params, ~list_modify(.x, 
+                                 minmean = names(.x$groupmeans[.x$groupmeans == min(.x$groupmeans)])[1],
+                                 maxmean = names(.x$groupmeans[.x$groupmeans == max(.x$groupmeans)])[1]))
+
+# Run through list of lists
+# Not sure I like this method as I end up with needing .x$ coding
+# Don't bind all with mao_dfr() because could have different 
+    # groups that make up largest difference
+res_test = map(params, 
+        ~do.call("rbind", replicate(n = 100, 
+                                   expr = anova_fun(groups = .x$trtnames,
+                                                    n = .x$trtn,
+                                                    means = .x$groupmeans,
+                                                    vars = .x$groupvar,
+                                                    minmean = .x$minmean,
+                                                    maxmean = .x$maxmean),
+                                   simplify = FALSE)),
+        .id = "sample")
+
+
+# Pull out plot code from dashboard for effect size
+    # to see how might work with this
+
+# Will need the true difference
+truediff = map(params, ~.x$groupmeans[.x$maxmean] - .x$groupmeans[.x$minmean])
+n = 100 # Sims size; will probably set earlier for actual runs
+
+# Testing for how will go in powerpoint
+library(ggplot2)
+library(ggtex)
+
+ggplot(data = res_test[[1]], aes(x = .data[[names(res_test[[1]])[2]]]) ) +
+        geom_density(fill = "blue", alpha = .5) +
+        geom_vline(xintercept = truediff[[1]], size = 0.75) +
+        annotate("label", label = paste("True difference:", truediff[[1]]),
+                 x = truediff[[1]], y = 0, angle = 90, size = 4) +
+        labs(title = names(res_test)[[1]],
+             subtitle = paste0("Distribution of largest estimated difference in means,<br>",
+                               "<span>&nbsp;</span><span>&nbsp;</span><span>&nbsp;</span><span>&nbsp;</span>", 
+                               names(res_test[[1]])[2]),
+             caption = paste("*Results from", n, "simulations.<br>
+                             Vertical line shows true difference calculated from Woodstock.*"),
+             y = "Density",
+             x = NULL) +
+        theme_bw(base_size = 12) +
+        theme(axis.text.y = element_blank(),
+              axis.ticks.y = element_blank(),
+              plot.caption = element_markdown(),
+              plot.subtitle = element_markdown(margin = unit(c(0, 0, 0, 0), "pt")),
+              plot.title = element_text(face = "bold", margin = unit(c(0, 0, 0, 0), "pt")),
+              panel.grid.minor.y = element_blank(),
+              panel.grid.major.y = element_blank() )
+
+# Test size for powerpoint
+# Do 150 dpi so even if make twice as big still have ~72 dpi
+    # (most screens max at 72 dpi)
+ggsave(
+    "test.png", 
+    plot = last_plot(),
+    width = 5, height = 4, units = "in", dpi = 150
+)
