@@ -5,6 +5,8 @@
 library(readxl) # Read excel data
 library(purrr) # Looping
 library(ggplot2) # Plotting
+library(ggalt) # plotting lollipops
+library(ggtext) # plotting text
 library(dplyr) # Data manip (summarizing)
 library(tidyr) # Reshaping
 
@@ -361,7 +363,7 @@ power = all_res %>%
 # Put things in order by response, year, n
 power = power %>%
     mutate(n = factor(n, levels = 1:10, 
-                         labels = c(1:9, "Current selection") ) ) %>%
+                         labels = c(1:9, "Complete sample") ) ) %>%
     arrange(Response, Year, n)
 
 # Save this as results
@@ -377,5 +379,61 @@ power_split = split(power, list(power$Response, power$Year) )
 
 
 # Test plot
-ggplot(data = power_split[[1]], aes(x = Power, y = n) ) +
-    geom_point()
+# Basing theme off example in ggalt (code on github)
+ggplot(data = power_split[[1]], aes(x = Power, y = stringr::str_wrap(n, width = 8) ) ) +
+    geom_lollipop(point.colour = "steelblue", point.size = 2, horizontal = TRUE) + 
+    scale_x_continuous(expand = expansion(add = c(0, .02) ),                                                                                                       
+                       breaks=seq(0, 1, by = 0.2), limits = c(0, 1) ) +
+    labs(y = NULL) +
+    theme_minimal(base_size = 12) +
+    theme(panel.grid.major.y = element_blank(),
+          panel.grid.minor = element_blank(),
+          axis.ticks.length.x = unit(0, "pt"),
+          axis.text.y = element_text(color = "black", margin = margin(l = 0, r = 0) ),
+          axis.text.x = element_text(color = "black"),
+     
+          # axis.line.y = element_line(size = 0.15)
+          # axis.title.y = element_markdown(vjust = 10, 
+          #                                 margin = unit(c(r = -10, 0, 0, 0), "pt")
+          #                                 ) 
+          )
+
+# Test sizes when saving
+# ggsave("test_lolli.png", path = here::here("plots"),
+#        width = 3, height = 3, dpi = 300)
+
+# Function for plotting
+lollipop_fun = function(data) {
+    ggplot(data = data, aes(x = Power, y = stringr::str_wrap(n, width = 8) ) ) +
+        geom_lollipop(point.colour = "steelblue", point.size = 2, horizontal = TRUE) + 
+        scale_x_continuous(expand = expansion(add = c(0, .02) ),                                                                                                       
+                           breaks=seq(0, 1, by = 0.2), limits = c(0, 1) ) +
+        labs(y = NULL) +
+        theme_minimal(base_size = 12) +
+        theme(panel.grid.major.y = element_blank(),
+              panel.grid.minor = element_blank(),
+              axis.ticks.length.x = unit(0, "pt"),
+              axis.text.y = element_text(color = "black", margin = margin(l = 0, r = 0) ),
+              axis.text.x = element_text(color = "black") )
+}
+
+
+# Run through all datasets and plot
+all_lolli = map(power_split, lollipop_fun)
+
+# Will need to use list names for naming
+stringr::str_sub("WIWA.100", start = -3) # extract year
+stringr::str_sub("WIWA.100", end = -5) # extract response
+
+# Save all plots with names based on response and year
+iwalk(all_lolli, ~ggsave(filename = paste0("2020-11_ESRF_lollipop_", 
+                                           stringr::str_sub(.y, end = -5), "_", "year", 
+                                           stringr::str_sub(.y, start = -3), ".png"), 
+                         path = here::here("plots"),
+                         plot = .x, 
+                         height = 3, 
+                         width = 3,
+                         units = "in",
+                         dpi = 300))
+
+
