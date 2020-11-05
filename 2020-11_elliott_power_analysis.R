@@ -153,10 +153,6 @@ respdat_years = filter(respdat, Year %in% c(20, 50, 100) )
 #                 '50' = "Year 50", 
 #                 '100' = "Year 100")
 
-# May want to set limits of boxplots all the same
-# Test with OCWA
-ocwalims = range(pull(respdat_years, OCWA10))
-
 
 # Test boxplot for one response for one year
 ggplot(data = filter(respdat_years, Year == 20), aes(x = Treatment, y = OCWA10) ) +
@@ -164,7 +160,7 @@ ggplot(data = filter(respdat_years, Year == 20), aes(x = Treatment, y = OCWA10) 
     geom_point(aes(color = Treatment), size = 2) +
     scale_color_manual(values = colors, guide = "none") +
     # scale_fill_manual(values = colors, guide = "none")  +
-    scale_y_continuous(limits = ocwalims) +
+    # scale_y_continuous(limits = ocwalims) +
     stat_summary(fun = mean, geom = "point", shape = 18,
                  size = 3.5, color = "grey24") +
     # facet_wrap(~Year, scales = "free_y", labeller = labeller(Year = fac_labels)) +
@@ -177,44 +173,6 @@ ggplot(data = filter(respdat_years, Year == 20), aes(x = Treatment, y = OCWA10) 
 
 # Test saving for save and general look
 # ggsave("testbox1.png", path = here::here("plots"),
-#        width = 4, height = 3, dpi = 300)
-
-ggplot(data = filter(respdat_years, Year == 50), aes(x = Treatment, y = OCWA10) ) +
-    geom_boxplot(aes(color = Treatment)) +
-    geom_point(aes(color = Treatment), size = 2) +
-    scale_color_manual(values = colors, guide = "none") +
-    # scale_fill_manual(values = colors, guide = "none")  +
-    scale_y_continuous(limits = ocwalims) +
-    stat_summary(fun = mean, geom = "point", shape = 18,
-                 size = 3.5, color = "grey24") +
-    # facet_wrap(~Year, scales = "free_y", labeller = labeller(Year = fac_labels)) +
-    theme_bw(base_size = 12) +
-    labs(y = "Birds per 10 acres",
-         x = NULL) +
-    theme(panel.grid.major.x = element_blank(),
-          panel.grid.minor.y = element_blank(),
-          axis.text = element_text(color = "black") )
-
-# ggsave("testbox2.png", path = here::here("plots"),
-#        width = 4, height = 3, dpi = 300)
-
-ggplot(data = filter(respdat_years, Year == 100), aes(x = Treatment, y = OCWA10) ) +
-    geom_boxplot(aes(color = Treatment)) +
-    geom_point(aes(color = Treatment), size = 2) +
-    scale_color_manual(values = colors, guide = "none") +
-    # scale_fill_manual(values = colors, guide = "none")  +
-    scale_y_continuous(limits = ocwalims) +
-    stat_summary(fun = mean, geom = "point", shape = 18,
-                 size = 3.5, color = "grey24") +
-    # facet_wrap(~Year, scales = "free_y", labeller = labeller(Year = fac_labels)) +
-    theme_bw(base_size = 12) +
-    labs(y = "Birds per 10 acres",
-         x = NULL) +
-    theme(panel.grid.major.x = element_blank(),
-          panel.grid.minor.y = element_blank(),
-          axis.text = element_text(color = "black") )
-
-# ggsave("testbox3.png", path = here::here("plots"),
 #        width = 4, height = 3, dpi = 300)
 
 # Pad year with 0 for naming saved plots
@@ -251,7 +209,7 @@ boxplot_fun = function(data, yvar) {
 # Test function
 boxplot_fun(data = year_split[[1]], yvar = resps[[1]])
 
-
+# Make all plots
 all_plots = map(year_split, 
                ~map(resps, function(yvar) {
                    boxplot_fun(data = .x, yvar = yvar)
@@ -266,6 +224,86 @@ plotnames
 
 # Now walk through and save all plots into "plots" folder
 walk2(plotnames, flatten(all_plots), ~ggsave(filename = .x, 
+                                             path = here::here("plots"),
+                                             plot = .y, 
+                                             height = 3, 
+                                             width = 4,
+                                             units = "in",
+                                             dpi = 300))
+
+# Boxplots same limits across years ----
+
+# 2020-11-05 Scott may want to have same y axis limits across
+    # the years so will make a second set of boxplots
+
+# Here is test with OCWA, calculating limits before splitting
+
+# Test with OCWA
+ocwalims = range(pull(respdat_years, OCWA10))
+
+ggplot(data = filter(respdat_years, Year == 20), aes(x = Treatment, y = OCWA10) ) +
+    geom_boxplot(aes(color = Treatment)) +
+    geom_point(aes(color = Treatment), size = 2) +
+    scale_color_manual(values = colors, guide = "none") +
+    # scale_fill_manual(values = colors, guide = "none")  +
+    scale_y_continuous(limits = ocwalims) +
+    stat_summary(fun = mean, geom = "point", shape = 18,
+                 size = 3.5, color = "grey24") +
+    # facet_wrap(~Year, scales = "free_y", labeller = labeller(Year = fac_labels)) +
+    theme_bw(base_size = 12) +
+    labs(y = "Birds per 10 acres",
+         x = NULL) +
+    theme(panel.grid.major.x = element_blank(),
+          panel.grid.minor.y = element_blank(),
+          axis.text = element_text(color = "black") )
+
+# Need to calculate range per response
+# Set names to be the same as responses so can extract in function
+all_lims = map(select(respdat_years, all_of(resps)),
+    range)
+names(all_lims) = resps
+
+boxplot_fun2 = function(data, yvar) {
+    
+    if(yvar == "CARBac") {
+        ylab = "Carbon (Mg/acre)"
+    } else {
+        ylab = "Birds per 10 acres"
+    }
+    
+    ggplot(data = data, aes(x = Treatment, y = .data[[yvar]]) ) +
+        geom_boxplot(aes(color = Treatment)) +
+        geom_point(aes(color = Treatment), size = 2) +
+        scale_color_manual(values = colors, guide = "none") +
+        scale_y_continuous(limits = all_lims[[yvar]]) +
+        stat_summary(fun = mean, geom = "point", shape = 18,
+                     size = 3.5, color = "black") +
+        theme_bw(base_size = 12) +
+        labs(y = ylab,
+             x = NULL) +
+        theme(panel.grid.major.x = element_blank(),
+              panel.grid.minor.y = element_blank(),
+              axis.text = element_text(color = "black") )
+}
+
+# Test function
+boxplot_fun2(data = year_split[[1]], yvar = resps[[1]])
+
+# Make all plots
+all_plots2 = map(year_split, 
+                ~map(resps, function(yvar) {
+                    boxplot_fun2(data = .x, yvar = yvar)
+                }) )
+
+
+# Make names for all the plots then flatten the list
+# From https://aosmith.rbind.io/2018/08/20/automating-exploratory-plots/#saving-all-plots-separately
+plotnames2 = imap(all_plots2, ~paste0("2020-11_ESRF_boxplot_", names(.x), "_", "year", .y, "_shared_limits.png")) %>%
+    flatten()
+plotnames2
+
+# Now walk through and save all plots into "plots" folder
+walk2(plotnames2, flatten(all_plots2), ~ggsave(filename = .x, 
                                              path = here::here("plots"),
                                              plot = .y, 
                                              height = 3, 
