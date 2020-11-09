@@ -263,12 +263,15 @@ all_lims = map(select(respdat_years, all_of(resps)),
     range)
 names(all_lims) = resps
 
+# 2020-11-09 change y labels to be changes
 boxplot_fun2 = function(data, yvar) {
     
     if(yvar == "CARBac") {
-        ylab = "Carbon (Mg/acre)"
+        ylab = "Change in carbon (Mg/acre)"
+    } else if(yvar == "MAMU10") {
+        ylab = "Change in cumulative habitat score"
     } else {
-        ylab = "Birds per 10 acres"
+        ylab = "Change in cumulative bird density"
     }
     
     ggplot(data = data, aes(x = Treatment, y = .data[[yvar]]) ) +
@@ -287,7 +290,7 @@ boxplot_fun2 = function(data, yvar) {
 }
 
 # Test function
-boxplot_fun2(data = year_split[[1]], yvar = resps[[1]])
+boxplot_fun2(data = year_split[[1]], yvar = resps[[8]])
 
 # Make all plots
 all_plots2 = map(year_split, 
@@ -532,10 +535,10 @@ power_split2 = split(power, power$Response)
     # want to remove those if keep a legend
 
 # Chose colors by getting 7 and taking 3, 5, 7 
-colorspace::specplot(colorspace::sequential_hcl(n = 7,
-                           palette = "Blues", rev = TRUE))
-dput(colorspace::sequential_hcl(n = 7,
-                                palette = "Blues", rev = TRUE))
+# colorspace::specplot(colorspace::sequential_hcl(n = 7,
+#                            palette = "Blues", rev = TRUE))
+# dput(colorspace::sequential_hcl(n = 7,
+#                                 palette = "Blues", rev = TRUE))
 # col2rgb(c("#ACCCE4", "#5087C1", "#273871"))
 # [,1] [,2] [,3]
 # red    172   80   39
@@ -555,7 +558,7 @@ ggplot(data = power_split2[[1]], aes(x = Power, y = stringr::str_wrap(n, width =
                labeller = labeller(Year = fac_labels) ) +
     scale_x_continuous(expand = expansion(add = c(0, .02) ),                                                                                                       
                        breaks=seq(0, 1, by = 0.2), limits = c(0, 1) ) +
-    labs(y = NULL) +
+    labs(y = "Number of treatment replicates") +
     scale_color_manual(values = c("#ACCCE4", "#5087C1", "#273871"),
                        guide = "none") +
     theme_minimal(base_size = 12) +
@@ -583,7 +586,7 @@ lollipop_fun2 = function(data) {
                                                 '100' = "100 years") ) ) +
         scale_x_continuous(expand = expansion(add = c(0, .02) ),                                                                                                       
                            breaks=seq(0, 1, by = 0.2), limits = c(0, 1) ) +
-        labs(y = NULL) +
+        labs(y = "Number of treatment replicates") +
         scale_color_manual(values = c("#ACCCE4", "#5087C1", "#273871"),
                            guide = "none") +
         theme_minimal(base_size = 12) +
