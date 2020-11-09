@@ -241,7 +241,7 @@ walk2(plotnames, flatten(all_plots), ~ggsave(filename = .x,
 # Test with OCWA
 ocwalims = range(pull(respdat_years, OCWA10))
 
-ggplot(data = filter(respdat_years, Year == 20), aes(x = Treatment, y = OCWA10) ) +
+ggplot(data = filter(respdat_years, Year == "020"), aes(x = Treatment, y = OCWA10) ) +
     geom_boxplot(aes(color = Treatment)) +
     geom_point(aes(color = Treatment), size = 2) +
     scale_color_manual(values = colors, guide = "none") +
@@ -255,7 +255,9 @@ ggplot(data = filter(respdat_years, Year == 20), aes(x = Treatment, y = OCWA10) 
          x = NULL) +
     theme(panel.grid.major.x = element_blank(),
           panel.grid.minor.y = element_blank(),
-          axis.text = element_text(color = "black") )
+          axis.text = element_text(color = "black"),
+          axis.title.y = element_text(size = rel(.8)),
+          axis.text.y = element_text(size = rel(.8)))
 
 # Need to calculate range per response
 # Set names to be the same as responses so can extract in function
@@ -263,7 +265,8 @@ all_lims = map(select(respdat_years, all_of(resps)),
     range)
 names(all_lims) = resps
 
-# 2020-11-09 change y labels to be changes
+# 2020-11-09 change y labels to be changes, reduce y axis font size
+
 boxplot_fun2 = function(data, yvar) {
     
     if(yvar == "CARBac") {
@@ -286,7 +289,9 @@ boxplot_fun2 = function(data, yvar) {
              x = NULL) +
         theme(panel.grid.major.x = element_blank(),
               panel.grid.minor.y = element_blank(),
-              axis.text = element_text(color = "black") )
+              axis.text = element_text(color = "black"),
+              axis.title.y = element_text(size = rel(.8)),
+              axis.text.y = element_text(size = rel(.8)) )
 }
 
 # Test function
@@ -549,6 +554,7 @@ power_split2 = split(power, power$Response)
 fac_labels = c('020' = "20 years",
                 '050' = "50 years",
                 '100' = "100 years")
+# 2020-11-09 Reduce font size of y axis labels
 
 # Use facet labels on right instead of legend
 ggplot(data = power_split2[[1]], aes(x = Power, y = stringr::str_wrap(n, width = 8) )  ) +
@@ -565,7 +571,9 @@ ggplot(data = power_split2[[1]], aes(x = Power, y = stringr::str_wrap(n, width =
     theme(panel.grid.major.y = element_blank(),
           panel.grid.minor = element_blank(),
           axis.ticks.length.x = unit(0, "pt"),
-          axis.text.y = element_text(color = "black", margin = margin(l = 0, r = 0) ),
+          axis.text.y = element_text(color = "black", 
+                                     margin = margin(l = 0, r = 0),
+                                     size = rel(.75)),
           axis.text.x = element_text(color = "black"),
           panel.spacing = unit(0, "lines"),
           #plot.margin = margin(0, 0, 0, 0)
@@ -593,7 +601,9 @@ lollipop_fun2 = function(data) {
         theme(panel.grid.major.y = element_blank(),
               panel.grid.minor = element_blank(),
               axis.ticks.length.x = unit(0, "pt"),
-              axis.text.y = element_text(color = "black", margin = margin(l = 0, r = 0) ),
+              axis.text.y = element_text(color = "black", 
+                                         margin = margin(l = 0, r = 0),
+                                         size = rel(.75) ),
               axis.text.x = element_text(color = "black"),
               panel.spacing = unit(0, "lines"),
               #plot.margin = margin(0, 0, 0, 0) 
@@ -606,7 +616,7 @@ all_lolli2 = map(power_split2, lollipop_fun2)
 
 # Save all plots with names based on response and year
 iwalk(all_lolli2, ~ggsave(filename = paste0("2020-11_ESRF_lollipop_", 
-                                           .y, "_", "allyears", ".png"), 
+                                           .y, "_", "allyears_smally", ".png"), 
                          path = here::here("plots"),
                          plot = .x, 
                          height = 4, 
